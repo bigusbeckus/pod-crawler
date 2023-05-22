@@ -10,19 +10,8 @@ import (
 )
 
 const PODCAST_URLS string = "data/podcasts.txt"
-
-func extractPodcastId(podcastUrl string) string {
-	if !utils.StringIncludes(podcastUrl, "/") {
-		panic("Not a valid url")
-	}
-	parts := strings.Split(podcastUrl, "/")
-	id := parts[len(parts)-1]
-	if id[:2] == "id" {
-		return id[2:]
-	} else {
-		return id
-	}
-}
+const PODCAST_LOOKUP_BATCH_SIZE uint8 = 100
+const PODCAST_LOOKUP_URL_BASE string = "https://itunes.apple.com/lookup?entity=podcast&id="
 
 func main() {
 	fmt.Println("Feed fetcher started")
@@ -37,40 +26,19 @@ func main() {
 	contentLines := strings.Split(strings.TrimSpace(string(content)), "\n")
 	fmt.Printf("%d podcasts read from file `%s`\n", len(contentLines), PODCAST_URLS)
 
-	var input string
-	var normalizedInput string
-
-	fmt.Println("Would you like to list all podcasts?")
-	fmt.Println("'Y' or 'yes' to list podcasts, any other input to cancel")
-	fmt.Scan(&input)
-	normalizedInput = strings.ToLower(input)
-	if !utils.ArrayIncludes([]string{"yes", "y"}, normalizedInput) {
-		fmt.Println("Exiting...")
-		os.Exit(0)
-	}
-
-	// Output
-	println(strings.Join(contentLines, "\n"))
-
-	input = ""
-	normalizedInput = ""
-
-	fmt.Println("Would you like to extract all podcast IDs?")
-	fmt.Println("'Y' or 'yes' to extract and list podcast IDs, any other input to cancel")
-	fmt.Scan(&input)
-	normalizedInput = strings.ToLower(input)
-	if !utils.ArrayIncludes([]string{"yes", "y"}, normalizedInput) {
-		fmt.Println("Exiting...")
-		os.Exit(0)
-	}
-
 	// Extract IDs
 	print("Extracting IDs from URLs...")
 	for i, value := range contentLines {
-		contentLines[i] = extractPodcastId(value)
+		contentLines[i] = utils.ExtractPodcastId(value)
 	}
 	println("Done")
 
-	// Output
-	println(strings.Join(contentLines, "\n"))
+	// Create batch lookup URLs
+	batchSize := 100
+	print("Creating lookup URLs with batch size " + fmt.Sprint(batchSize) + "...")
+	batchLinks := utils.CreateBatchLookupLinks(PODCAST_LOOKUP_URL_BASE, contentLines, 100)
+	println("Done")
+
+	fmt.Printf("%d batched links generated\n", len(batchLinks))
+	// println(strings.Join(batchLinks, "\n\n"))
 }
