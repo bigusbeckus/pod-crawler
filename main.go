@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bigusbeckus/podcast-feed-fetcher/scheduler"
 	"github.com/bigusbeckus/podcast-feed-fetcher/utils"
 )
 
@@ -41,4 +42,6 @@ func main() {
 
 	fmt.Printf("%d batched links generated\n", len(batchLinks))
 	// println(strings.Join(batchLinks, "\n\n"))
+
+	scheduler.Start(batchLinks, 200)
 }
