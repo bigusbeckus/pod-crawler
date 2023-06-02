@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bigusbeckus/podcast-feed-fetcher/models"
 	"github.com/bigusbeckus/podcast-feed-fetcher/scheduler"
 	"github.com/bigusbeckus/podcast-feed-fetcher/utils"
 )
@@ -14,8 +15,16 @@ const PODCAST_URLS string = "data/podcasts.txt"
 const PODCAST_LOOKUP_BATCH_SIZE uint8 = 100
 const PODCAST_LOOKUP_URL_BASE string = "https://itunes.apple.com/lookup?entity=podcast&id="
 
+func Init() {
+	println("Running migrations...")
+	models.RunMigrations()
+	println("Migrations done")
+}
+
 func main() {
 	fmt.Println("Feed fetcher started")
+
+	Init()
 
 	// Read podcast list from file
 	content, err := os.ReadFile(PODCAST_URLS)

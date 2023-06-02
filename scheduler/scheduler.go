@@ -3,50 +3,18 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"math"
 	"net/http"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/bigusbeckus/podcast-feed-fetcher/models"
 )
 
-type PodcastEntry struct {
-	WrapperType            string   `json:"wrapperType"`
-	Kind                   string   `json:"kind"`
-	ArtistId               int      `json:"artistId"`
-	CollectionId           int      `json:"collectionId"`
-	TrackId                int      `json:"trackId"`
-	ArtistName             string   `json:"artistName"`
-	CollectionName         string   `json:"collectionName"`
-	TrackName              string   `json:"trackName"`
-	CollectionCensoredName string   `json:"collectionCensoredName"`
-	TrackCensoredName      string   `json:"trackCensoredName"`
-	ArtistViewUrl          string   `json:"artistViewUrl"`
-	CollectionViewUrl      string   `json:"collectionViewUrl"`
-	FeedUrl                string   `json:"feedUrl"`
-	TrackViewUrl           string   `json:"trackViewUrl"`
-	ArtworkUrl30           string   `json:"artworkUrl30"`
-	ArtworkUrl60           string   `json:"artworkUrl60"`
-	ArtworkUrl100          string   `json:"artworkUrl100"`
-	CollectionPrice        float64  `json:"collectionPrice"`
-	TrackPrice             float64  `json:"trackPrice"`
-	TrackRentalPrice       float64  `json:"trackRentalPrice"`
-	CollectionHdPrice      float64  `json:"collectionHdPrice"`
-	TrackHdPrice           float64  `json:"trackHdPrice"`
-	TrackHdRentalPrice     float64  `json:"trackHdRentalPrice"`
-	ReleaseDate            string   `json:"releaseDate"`
-	CollectionExplicitness string   `json:"collectionExplicitness"`
-	TrackExplicitness      string   `json:"trackExplicitness"`
-	TrackCount             int      `json:"trackCount"`
-	Country                string   `json:"country"`
-	Currency               string   `json:"currency"`
-	PrimaryGenreName       string   `json:"primaryGenreName"`
-	ContentAdvisoryRating  string   `json:"contentAdvisoryRating"`
-	ArtworkUrl600          string   `json:"artworkUrl600"`
-	GenreIds               []string `json:"genreIds"`
-	Genres                 []string `json:"genres"`
-}
-
+type PodcastEntry = models.PodcastEntry
 type LookupResponse struct {
 	ResultCount int            `json:"resultCount"`
 	Results     []PodcastEntry `json:"results"`
@@ -97,10 +65,11 @@ func Start(urls []string, fetchBatchSize int) {
 	println("Done")
 
 	lookupUrls := urls
-	saveTreshold := 20
+	saveTreshold := 200
 
 	print("Creating payload array...")
-	payloads := make([]LookupResponse, 0)
+	payloads := make([]PodcastEntry, 0)
+	// resultCounts := make([]int, 0)
 	println("Done")
 
 	totalProcessed := 0
@@ -115,7 +84,7 @@ func Start(urls []string, fetchBatchSize int) {
 				batch := extractBatch(&lookupUrls, fetchBatchSize)
 				println("Done")
 
-				go concurrentLookup(batch, schedulerChannel)
+				concurrentLookup(batch, schedulerChannel)
 			}
 		case msg := <-schedulerChannel:
 			if msg.Command == Stop {
@@ -146,24 +115,36 @@ func Start(urls []string, fetchBatchSize int) {
 						return
 					}
 					totalProcessed++
-					payloads = append(payloads, parsed)
+
+					// resultCounts = append(resultCounts, parsed.ResultCount)
+					for _, result := range parsed.Results {
+						payloads = append(payloads, result)
+					}
 					// println("Done")
 
 					if len(payloads) >= saveTreshold {
 						println("Saving", len(payloads), "payloads to file...")
 
-						resultString := "Result counts: "
-						for i, item := range payloads {
-							resultString += fmt.Sprint(item.ResultCount)
-							if i != len(payloads)-1 {
-								resultString += ","
-							}
+						// resultString := "Result counts: "
+						// for i, resultCount := range resultCounts {
+						// 	resultString += fmt.Sprint(resultCount)
+						// 	if i != len(resultCounts)-1 {
+						// 		resultString += ","
+						// 	}
+						// }
+						// println(resultString)
+
+						payloadsJson, err := json.Marshal(payloads)
+						if err != nil {
+							panic("Payload JSON conversion failed")
 						}
-						println(resultString)
+
+						os.WriteFile("output/payloads__"+time.Now().Format(time.RFC3339)+".json", []byte(payloadsJson), fs.ModeDevice)
 
 						println("Payloads saved")
 
-						payloads = make([]LookupResponse, 0)
+						payloads = make([]PodcastEntry, 0)
+						// resultCounts = make([]int, 0)
 					}
 				}()
 			} else {
@@ -183,8 +164,9 @@ func extractBatch(urls *[]string, batchSize int) []string {
 }
 
 func concurrentLookup(urls []string, channel chan SchedulerMessage) {
+	urlsCount := len(urls)
 	var wg sync.WaitGroup
-	responses := make(chan WaitGroupMessage, len(urls))
+	responses := make(chan WaitGroupMessage, urlsCount)
 
 	for _, url := range urls {
 		wg.Add(1)
@@ -226,38 +208,41 @@ func concurrentLookup(urls []string, channel chan SchedulerMessage) {
 		}(url)
 	}
 
-	println(len(urls), " concurrent requests fired. Awaiting responses...")
+	println(urlsCount, " concurrent requests fired. Awaiting responses...")
 
 	wg.Wait()
 	close(responses)
 
-	println(len(urls), "responses received")
-	println("Response processing started...")
+	println(urlsCount, "responses received")
 
-	successes := 0
-	failures := 0
+	go func(responses chan WaitGroupMessage, schedulerChannel chan SchedulerMessage, urlsCount int) {
+		println("Response processing started...")
 
-	for response := range responses {
-		var schedulerCommand SchedulerCommand
-		if response.Success {
-			schedulerCommand = Save
-			successes++
-		} else {
-			schedulerCommand = Retry
-			failures++
+		successes := 0
+		failures := 0
+
+		for response := range responses {
+			var schedulerCommand SchedulerCommand
+			if response.Success {
+				schedulerCommand = Save
+				successes++
+			} else {
+				schedulerCommand = Retry
+				failures++
+			}
+
+			schedulerChannel <- SchedulerMessage{
+				Success: response.Success,
+				Command: schedulerCommand,
+				Task: SchedulerTask{
+					Url:     response.Url,
+					Payload: response.Payload,
+				},
+			}
 		}
 
-		channel <- SchedulerMessage{
-			Success: response.Success,
-			Command: schedulerCommand,
-			Task: SchedulerTask{
-				Url:     response.Url,
-				Payload: response.Payload,
-			},
-		}
-	}
-
-	println("Responses processed")
-	println(successes, "successful and", failures, "failed responses. Total:", successes+failures, "/", len(urls))
-	println("Retries will be scheduled for the", failures, "failed requests")
+		println("Responses processed")
+		println(successes, "successful and", failures, "failed responses. Total:", successes+failures, "/", urlsCount)
+		println("Retries will be scheduled for the", failures, "failed requests")
+	}(responses, channel, urlsCount)
 }
