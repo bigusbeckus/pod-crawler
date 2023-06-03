@@ -22,3 +22,6 @@ go.work
 
 # Output files
 output/
+
+# My playground folder
+dump/
