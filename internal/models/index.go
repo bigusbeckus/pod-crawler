@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/bigusbeckus/podcast-feed-fetcher/db"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/db"
 )
 
 func RunMigrations() {

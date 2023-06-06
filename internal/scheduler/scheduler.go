@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bigusbeckus/podcast-feed-fetcher/models"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/models"
 )
 
 type PodcastEntry = models.PodcastEntry

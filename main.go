@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bigusbeckus/podcast-feed-fetcher/models"
-	"github.com/bigusbeckus/podcast-feed-fetcher/scheduler"
-	"github.com/bigusbeckus/podcast-feed-fetcher/utils"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/models"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/scheduler"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/utils"
 )
 
 const PODCAST_URLS string = "data/podcasts.txt"
