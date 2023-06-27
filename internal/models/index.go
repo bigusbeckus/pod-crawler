@@ -5,7 +5,6 @@ import (
 )
 
 func RunMigrations() {
-
 	dbInstance, err := db.GetInstance()
 	if err != nil {
 		panic("Unable to get database instance")

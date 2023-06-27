@@ -83,6 +83,7 @@ func Start(urls []string, fetchBatchSize int) {
 				concurrentLookup(batch, schedulerChannel)
 			}
 		case msg := <-schedulerChannel:
+      // Setup context before moving this into a separate function
 			if msg.Command == Skip {
 				totalProcessed++
 			} else if msg.Command == Stop {
