@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -47,7 +48,110 @@ type SchedulerMessage struct {
 	Command SchedulerCommand
 }
 
+const INVALID_BODY = "invalid_body"
 const SAVE_TRESHOLD = 50000
+
+func onTick(t time.Time, lookupUrls []string, schedulerChannel chan SchedulerMessage, fetchBatchSize int) {
+	fmt.Println("Tick at: ", t)
+	if len(lookupUrls) > 0 {
+		fmt.Printf("Sending %d requests...\n", fetchBatchSize)
+
+		print("Extracting batch...")
+		batch := extractBatch(&lookupUrls, fetchBatchSize)
+		println("Done")
+
+		concurrentLookup(batch, schedulerChannel)
+	}
+}
+
+// Retry on failure
+func onSchedulerRetry(lookupUrls *[]string, msg SchedulerMessage) {
+	*lookupUrls = append(*lookupUrls, msg.Task.Url)
+}
+
+// Stop processing (Stop command or finished processing)
+func onSchedulerStop(ticker *time.Ticker, totalProcessed int, urlsCount int) {
+	allProcessed := totalProcessed >= urlsCount
+
+	if allProcessed {
+		println("Complete! All URLs processed")
+	} else {
+		println("Received premature 'Stop' message")
+	}
+
+	println("Stopping ticker...")
+	ticker.Stop()
+	println("Ticker stopped")
+
+}
+
+func saveBatch(batch []PodcastEntry) error {
+	println("Saving", len(batch), "entries to file...")
+
+	batchJson, err := json.Marshal(batch)
+	if err != nil {
+		return errors.New("Payload JSON conversion failed")
+	}
+
+	os.WriteFile("output/payloads__"+time.Now().Format(time.RFC3339)+".json", []byte(batchJson), fs.ModeDevice)
+	println("Payloads saved")
+
+	return nil
+}
+
+func resetPayloads(payloads *[]PodcastEntry, nextIndex *int) {
+	*payloads = make([]PodcastEntry, SAVE_TRESHOLD)
+	*nextIndex = 0
+}
+
+func parseLookupResponse(msg SchedulerMessage) (*LookupResponse, error) {
+	payload := msg.Task.Payload
+	url := msg.Task.Url
+
+	var parsed LookupResponse
+	jsonErr := json.Unmarshal([]byte(payload), &parsed)
+	if jsonErr != nil {
+		err := errors.New(fmt.Sprintf("Error parsing response body from %s: %s", url, jsonErr.Error()))
+		return nil, err
+	}
+
+	return &parsed, nil
+}
+
+// func dynamicAppendPayloads(payloads []PodcastEntry, parsed []PodcastEntry) {
+// 	lastIndex := len(payloads) - 1
+// }
+
+// Success
+func onSchedulerSuccess(lookupUrls *[]string, payloads []PodcastEntry, msg SchedulerMessage, payloadsNextIndex *int, totalProcessed *int) {
+	parsed, err := parseLookupResponse(msg)
+	if err != nil {
+		println(err.Error())
+		*lookupUrls = append(*lookupUrls, msg.Task.Url) // Schedule retry
+		return
+	}
+
+	*totalProcessed++
+
+	payloadsLastIndex := len(payloads) - 1
+	for _, result := range parsed.Results {
+		if *payloadsNextIndex > payloadsLastIndex {
+			payloads = append(payloads, result)
+		} else {
+			payloads[*payloadsNextIndex] = result
+		}
+		*payloadsNextIndex++
+	}
+
+	currentBatch := *payloadsNextIndex
+	if currentBatch >= SAVE_TRESHOLD {
+		if err := saveBatch(payloads); err != nil {
+			panic(err.Error())
+		}
+		resetPayloads(&payloads, payloadsNextIndex)
+	}
+
+}
 
 func Start(urls []string, fetchBatchSize int) {
 	fmt.Printf("Scheduler started with batch size %d\n", fetchBatchSize)
@@ -64,109 +168,31 @@ func Start(urls []string, fetchBatchSize int) {
 
 	print("Creating payload array...")
 	payloads := make([]PodcastEntry, SAVE_TRESHOLD)
-	// resultCounts := make([]int, 0)
 	println("Done")
 
 	totalProcessed := 0
 	payloadsNextIndex := 0
+
 	for {
 		select {
 		case t := <-ticker.C:
-			fmt.Println("Tick at: ", t)
-			if len(lookupUrls) > 0 {
-				fmt.Printf("Sending %d requests...\n", fetchBatchSize)
-
-				print("Extracting batch...")
-				batch := extractBatch(&lookupUrls, fetchBatchSize)
-				println("Done")
-
-				concurrentLookup(batch, schedulerChannel)
-			}
+			onTick(t, lookupUrls, schedulerChannel, fetchBatchSize)
 		case msg := <-schedulerChannel:
-      // Setup context before moving this into a separate function
+			// Setup context before moving this into a separate function
 			if msg.Command == Skip {
 				totalProcessed++
 			} else if msg.Command == Stop {
-				// Stop processing (Stop command or finished processing)
-				if totalProcessed >= len(urls) {
-					println("Complete! All URLs processed")
-				} else {
-					println("Received premature 'Stop' message")
-				}
-
-				println("Stopping ticker...")
-				ticker.Stop()
-				println("Ticker stopped")
+				onSchedulerStop(ticker, totalProcessed, len(urls))
 			} else if msg.Command == Retry {
-				// Retry on failure
-				lookupUrls = append(lookupUrls, msg.Task.Url)
+				onSchedulerRetry(&lookupUrls, msg)
 			} else if msg.Success {
-				// Success
-				var parsed LookupResponse
-				jsonErr := json.Unmarshal([]byte(string(msg.Task.Payload)), &parsed)
-				if jsonErr != nil {
-					println(fmt.Sprintf("Error parsing response body from %s: %s", msg.Task.Url, jsonErr.Error()))
-					lookupUrls = append(lookupUrls, msg.Task.Url)
-					return
-				}
-				totalProcessed++
-
-				payloadsLastIndex := len(payloads) - 1
-				for _, result := range parsed.Results {
-					if payloadsNextIndex > payloadsLastIndex {
-						payloads = append(payloads, result)
-					} else {
-						payloads[payloadsNextIndex] = result
-					}
-					payloadsNextIndex++
-				}
-
-				currentBatchCount := payloadsNextIndex
-				if currentBatchCount >= SAVE_TRESHOLD {
-					println("Saving", currentBatchCount, "entries to file...")
-
-					payloadsJson, err := json.Marshal(payloads)
-					if err != nil {
-						panic("Payload JSON conversion failed")
-					}
-
-					os.WriteFile("output/payloads__"+time.Now().Format(time.RFC3339)+".json", []byte(payloadsJson), fs.ModeDevice)
-
-					println("Payloads saved")
-
-					payloads = make([]PodcastEntry, SAVE_TRESHOLD)
-					payloadsNextIndex = 0
-				}
-				// go func(payloads []PodcastEntry, schedulerTask *SchedulerTask) {
-				// 	task := *schedulerTask
-				// 	var parsed LookupResponse
-				// 	jsonErr := json.Unmarshal([]byte(string(task.Payload)), &parsed)
-				// 	if jsonErr != nil {
-				// 		println(fmt.Sprintf("Error parsing response body from %s: %s", task.Url, jsonErr.Error()))
-				// 		lookupUrls = append(lookupUrls, task.Url)
-				// 		return
-				// 	}
-				// 	totalProcessed++
-				//
-				// 	for _, result := range parsed.Results {
-				// 		payloads = append(payloads, result)
-				// 	}
-				//
-				// 	if len(payloads) >= SAVE_TRESHOLD {
-				// 		println("Saving", len(payloads), "payloads to file...")
-				//
-				// 		payloadsJson, err := json.Marshal(payloads)
-				// 		if err != nil {
-				// 			panic("Payload JSON conversion failed")
-				// 		}
-				//
-				// 		os.WriteFile("output/payloads__"+time.Now().Format(time.RFC3339)+".json", []byte(payloadsJson), fs.ModeDevice)
-				//
-				// 		println("Payloads saved")
-				//
-				// 		payloads = make([]PodcastEntry, 0)
-				// 	}
-				// }(payloads, &msg.Task)
+				onSchedulerSuccess(
+					&lookupUrls,
+					payloads,
+					msg,
+					&totalProcessed,
+					&payloadsNextIndex,
+				)
 			} else {
 				println("Unhandled message")
 				ticker.Stop()
@@ -183,60 +209,100 @@ func extractBatch(urls *[]string, batchSize int) []string {
 	return currentBatch
 }
 
+func fetch(wg *sync.WaitGroup, schedulerChannel chan SchedulerMessage, failuresChannel chan string, url string, index int) {
+	defer wg.Done()
+
+	resp, err := http.Get(url)
+	if err != nil || resp.Status != "200 OK" {
+		// Requeue on fetch error
+		failuresChannel <- resp.Status
+		go func() {
+			schedulerChannel <- SchedulerMessage{
+				Success: false,
+				Command: Retry,
+				Task: SchedulerTask{
+					Url: url,
+				},
+			}
+		}()
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		// No requeue on invalid body
+		failuresChannel <- INVALID_BODY
+		go func() {
+			schedulerChannel <- SchedulerMessage{
+				Success: false,
+				Command: Skip,
+			}
+		}()
+		return
+	}
+
+	go func(schedulerChannel chan SchedulerMessage, url string, payload string) {
+		schedulerChannel <- SchedulerMessage{
+			Success: true,
+			Command: Save,
+			Task: SchedulerTask{
+				Url:     url,
+				Payload: payload,
+			},
+		}
+	}(schedulerChannel, url, string(body))
+}
+
+func printSuccessRatios(successes int, failures int, urlsCount int) {
+	println(successes, "successful and", failures, "failed responses. Total:", successes+failures, "/", urlsCount)
+
+	failuresRatio := float64(failures) / float64(urlsCount) * 100
+	failurePercentage := math.Round((failuresRatio * 100)) / 100
+
+	fmt.Println(failurePercentage, "% failure rate")
+}
+
+func printFailureGroupStats(failuresCount int, failuresChannel chan string) {
+	if failuresCount <= 0 {
+		return
+	}
+
+	noRetriesCount := 0
+	groupedFailures := make(map[string]int)
+	for failureMessage := range failuresChannel {
+		if failureMessage == INVALID_BODY {
+			noRetriesCount++
+		}
+		groupedFailures[failureMessage] = groupedFailures[failureMessage] + 1
+	}
+
+	var statsString string
+	for key, value := range groupedFailures {
+		statsString += fmt.Sprintf("%s: %d, ", key, value)
+	}
+
+	println("Stats - ", statsString[:len(statsString)-2])
+	fmt.Printf("Retries will be scheduled for %d/%d of the failed requests\n", failuresCount-noRetriesCount, failuresCount)
+}
+
+func printStats(failuresChannel chan string, urlsCount int) {
+	failures := len(failuresChannel)
+	successes := urlsCount - failures
+
+	printSuccessRatios(successes, failures, urlsCount)
+	go printFailureGroupStats(failures, failuresChannel)
+}
+
 func concurrentLookup(urls []string, schedulerChannel chan SchedulerMessage) {
 	urlsCount := len(urls)
+
 	var wg sync.WaitGroup
 	failuresChannel := make(chan string, urlsCount)
 
-	const INVALID_BODY = "invalid_body"
-
 	for i, url := range urls {
 		wg.Add(1)
-
-		go func(url string, schedulerChannel chan SchedulerMessage, failuresChannel chan string, index int) {
-			defer wg.Done()
-
-			resp, err := http.Get(url)
-			if err != nil || resp.Status != "200 OK" {
-				// Requeue on fetch error
-				failuresChannel <- resp.Status
-				go func() {
-					schedulerChannel <- SchedulerMessage{
-						Success: false,
-						Command: Retry,
-						Task: SchedulerTask{
-							Url: url,
-						},
-					}
-				}()
-				return
-			}
-			defer resp.Body.Close()
-
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				// No requeue on invalid body
-				failuresChannel <- INVALID_BODY
-				go func() {
-					schedulerChannel <- SchedulerMessage{
-						Success: false,
-						Command: Skip,
-					}
-				}()
-				return
-			}
-
-			go func(schedulerChannel chan SchedulerMessage, url string, payload string) {
-				schedulerChannel <- SchedulerMessage{
-					Success: true,
-					Command: Save,
-					Task: SchedulerTask{
-						Url:     url,
-						Payload: payload,
-					},
-				}
-			}(schedulerChannel, url, string(body))
-		}(url, schedulerChannel, failuresChannel, i)
+		go fetch(&wg, schedulerChannel, failuresChannel, url, i)
 	}
 
 	println(urlsCount, "concurrent requests fired. Awaiting responses...")
@@ -246,33 +312,5 @@ func concurrentLookup(urls []string, schedulerChannel chan SchedulerMessage) {
 
 	println(urlsCount, "responses received")
 
-	failures := len(failuresChannel)
-	successes := urlsCount - failures
-
-	println(successes, "successful and", failures, "failed responses. Total:", successes+failures, "/", urlsCount)
-	failuresRatio := float64(len(failuresChannel)) / float64(urlsCount) * 100
-	failurePercentage := math.Round((failuresRatio * 100)) / 100
-	fmt.Println(failurePercentage, "% failure rate")
-
-	if failures > 0 {
-		go func(failuresChannel chan string) {
-			failures = len(failuresChannel)
-			noRetries := 0
-			groupedFailures := make(map[string]int)
-			for failure := range failuresChannel {
-				if failure == INVALID_BODY {
-					noRetries++
-				}
-				groupedFailures[failure] = groupedFailures[failure] + 1
-			}
-
-			var statsString string
-			for key, value := range groupedFailures {
-				statsString += fmt.Sprintf("%s: %d, ", key, value)
-			}
-
-			println("Stats - ", statsString[:len(statsString)-2])
-			fmt.Printf("Retries will be scheduled for %d/%d of the failed requests\n", failures-noRetries, failures)
-		}(failuresChannel)
-	}
+	printStats(failuresChannel, urlsCount)
 }
