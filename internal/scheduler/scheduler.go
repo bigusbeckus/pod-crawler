@@ -118,9 +118,29 @@ func parseLookupResponse(msg SchedulerMessage) (*LookupResponse, error) {
 	return &parsed, nil
 }
 
-// func dynamicAppendPayloads(payloads []PodcastEntry, parsed []PodcastEntry) {
-// 	lastIndex := len(payloads) - 1
-// }
+/*
+Add parsed podcast results to existing payload slice
+
+Note: Attempts to use preallocted memory but resizes the payload slice if new entries
+exceed the slice's preallocated size
+*/
+func appendEntries(payloads []PodcastEntry, newEntries []PodcastEntry, cursorIndex int) ([]PodcastEntry, int) {
+	lastIndex := len(payloads) - 1
+	isOverflowing := cursorIndex > lastIndex
+
+	for _, result := range newEntries {
+		if isOverflowing {
+			payloads = append(payloads, result)
+		} else {
+			payloads[cursorIndex] = result
+			isOverflowing = cursorIndex+1 > lastIndex
+		}
+
+		cursorIndex++
+	}
+
+	return payloads, cursorIndex
+}
 
 // Success
 func onSchedulerSuccess(lookupUrls *[]string, payloads []PodcastEntry, msg SchedulerMessage, payloadsNextIndex *int, totalProcessed *int) {
@@ -133,18 +153,10 @@ func onSchedulerSuccess(lookupUrls *[]string, payloads []PodcastEntry, msg Sched
 
 	*totalProcessed++
 
-	payloadsLastIndex := len(payloads) - 1
-	for _, result := range parsed.Results {
-		if *payloadsNextIndex > payloadsLastIndex {
-			payloads = append(payloads, result)
-		} else {
-			payloads[*payloadsNextIndex] = result
-		}
-		*payloadsNextIndex++
-	}
+	payloads, *payloadsNextIndex = appendEntries(payloads, parsed.Results, *payloadsNextIndex)
 
-	currentBatch := *payloadsNextIndex
-	if currentBatch >= SAVE_TRESHOLD {
+	currentBatchSize := *payloadsNextIndex
+	if currentBatchSize >= SAVE_TRESHOLD {
 		if err := saveBatch(payloads); err != nil {
 			panic(err.Error())
 		}
