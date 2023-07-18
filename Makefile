@@ -1,3 +1,5 @@
+OUTFILE = bin/podcrawler
+
 all: staticcheck build
 
 fmtcheck:
@@ -7,12 +9,14 @@ staticcheck:
 	"$(CURDIR)/scripts/staticcheck.sh"
 
 build:
-	"$(CURDIR)/scripts/build.sh"
+	"$(CURDIR)/scripts/build.sh" -o $(OUTFILE)
 
 clean:
 	"$(CURDIR)/scripts/build.sh" -c
 
-debug:
-	go run .
+run:
+	./$(OUTFILE)
+
+debug: build run
 
 .PHONY: fmtcheck staticcheck

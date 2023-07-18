@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"sync"
@@ -15,9 +15,7 @@ func GetInstance() (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 
-	once.Do(func() {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	})
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	return db, err
 }

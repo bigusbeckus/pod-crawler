@@ -9,10 +9,11 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
-	"github.com/bigusbeckus/podcast-feed-fetcher/internal/models"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/database/models"
 )
 
 type PodcastEntry = models.PodcastEntry
@@ -82,7 +83,6 @@ func onSchedulerStop(ticker *time.Ticker, totalProcessed int, urlsCount int) {
 	println("Stopping ticker...")
 	ticker.Stop()
 	println("Ticker stopped")
-
 }
 
 func saveBatch(batch []PodcastEntry) error {
@@ -163,6 +163,10 @@ func onSchedulerSuccess(lookupUrls *[]string, payloads []PodcastEntry, msg Sched
 		resetPayloads(&payloads, payloadsNextIndex)
 	}
 
+	if len(*lookupUrls) == 0 {
+		println("Crawling complete. Output in the output directory")
+		os.Exit(0)
+	}
 }
 
 func Start(urls []string, fetchBatchSize int) {
@@ -188,6 +192,7 @@ func Start(urls []string, fetchBatchSize int) {
 	for {
 		select {
 		case t := <-ticker.C:
+			fmt.Println("Running Goroutines:", runtime.NumGoroutine())
 			onTick(t, lookupUrls, schedulerChannel, fetchBatchSize)
 		case msg := <-schedulerChannel:
 			// Setup context before moving this into a separate function
@@ -210,7 +215,6 @@ func Start(urls []string, fetchBatchSize int) {
 				ticker.Stop()
 			}
 		}
-
 	}
 }
 
@@ -320,9 +324,9 @@ func concurrentLookup(urls []string, schedulerChannel chan SchedulerMessage) {
 	println(urlsCount, "concurrent requests fired. Awaiting responses...")
 
 	wg.Wait()
-	close(failuresChannel)
 
 	println(urlsCount, "responses received")
 
 	printStats(failuresChannel, urlsCount)
+	close(failuresChannel)
 }

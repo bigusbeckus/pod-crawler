@@ -30,6 +30,11 @@ function main {
 			show_version
 			exit 0
 			;;
+		-o | --output)
+			TARGET_FILE=$2
+			build
+			exit 0
+			;;
 		-* | --* | *)
 			echo "Unknown option $1"
 			echo

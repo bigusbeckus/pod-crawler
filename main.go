@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bigusbeckus/podcast-feed-fetcher/internal/models"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/database"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/scheduler"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/utils"
 )
@@ -19,7 +19,7 @@ const PODCAST_CONCURRENT_LOOKUPS_COUNT int = 100
 
 func Init() {
 	println("Running migrations...")
-	models.RunMigrations()
+	database.RunMigrations()
 	println("Migrations done")
 }
 
