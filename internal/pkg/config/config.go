@@ -25,7 +25,8 @@ type Config struct {
 	} `yaml:"database" validate:"required"`
 	Input struct {
 		PodcastListFile string `yaml:"podcastListFile" default:"data/podcasts.txt" validate:"required"`
-	} `yaml:"input"`
+	} `yaml:"input" validate:"required"`
+	LogDestination string `yaml:"logDestination" default:"logs/" validate:"required"`
 }
 
 var AppConfig *Config

@@ -1,16 +1,24 @@
 package database
 
-import "github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
+import (
+	"fmt"
 
-func RunMigrations() {
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
+)
+
+func RunMigrations() error {
 	db, err := GetInstance()
 	if err != nil {
-		panic("Unable to get database instance")
+		fmt.Println("Unable to get database instance")
+		return err
 	}
 
-	err = db.AutoMigrate(&models.PodcastModel{})
+	podcastModelErr := db.AutoMigrate(&models.PodcastModel{})
 
-	if err != nil {
-		panic("Migrations failed")
+	if podcastModelErr != nil {
+		fmt.Println("Migrations failed")
+		return podcastModelErr
 	}
+
+	return nil
 }

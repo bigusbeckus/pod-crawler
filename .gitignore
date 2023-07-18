@@ -32,3 +32,6 @@ dump/
 
 # Config file
 config.yaml
+
+# Log files default directory
+logs/*

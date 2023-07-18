@@ -6,3 +6,4 @@ database:
   user: postgres
 input:
   podcastListFile: data/podcasts.txt
+logDestination: logs/
