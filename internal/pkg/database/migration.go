@@ -1,6 +1,6 @@
 package database
 
-import "github.com/bigusbeckus/podcast-feed-fetcher/internal/database/models"
+import "github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
 
 func RunMigrations() {
 	db, err := GetInstance()

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bigusbeckus/podcast-feed-fetcher/internal/database/models"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
 )
 
 type PodcastEntry = models.PodcastEntry

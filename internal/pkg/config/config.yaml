@@ -1,0 +1,8 @@
+database:
+  dbName: podcast-feeds
+  host: localhost
+  password: g7bXjBroyyCXyL92ZJT4mQu6hc3pTQAA
+  port: 5432
+  user: postgres
+input:
+  podcastListFile: data/podcasts.txt
