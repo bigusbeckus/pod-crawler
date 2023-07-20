@@ -15,6 +15,8 @@ import (
 var Info *log.Logger
 var Warn *log.Logger
 var Error *log.Logger
+var Success *log.Logger
+var System *log.Logger
 
 // Creates a file writer with predetermined options given a filename
 func createFileWriter(filename string) (io.Writer, error) {
@@ -79,28 +81,20 @@ func Init() error {
 		return err
 	}
 
-	// Create loggers
+	// Define logger options
+	flag := log.Ldate | log.Ltime // | log.Lshortfile
 	colorStdout := &colorWriter{
 		out: os.Stdout,
 	}
+	defaultMultiWriter := io.MultiWriter(defaultFile, colorStdout)
+	errorMultiWriter := io.MultiWriter(defaultFile, errorFile, colorStdout)
 
-	Info = log.New(
-		io.MultiWriter(defaultFile, colorStdout),
-		infoPrefix,
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
-
-	Warn = log.New(
-		io.MultiWriter(defaultFile, colorStdout),
-		warnPrefix,
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
-
-	Error = log.New(
-		io.MultiWriter(defaultFile, errorFile, colorStdout),
-		errorPrefix,
-		log.Ldate|log.Ltime|log.Lshortfile,
-	)
+	// Create loggers
+	Info = log.New(defaultMultiWriter, infoPrefix, flag)
+	Warn = log.New(defaultMultiWriter, warnPrefix, flag)
+	Error = log.New(errorMultiWriter, errorPrefix, flag)
+	Success = log.New(defaultMultiWriter, successPrefix, flag)
+	System = log.New(defaultMultiWriter, systemPrefix, flag)
 
 	return nil
 }
