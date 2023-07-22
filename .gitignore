@@ -35,3 +35,6 @@ config.yaml
 
 # Log files default directory
 logs/*
+
+# Podcast url list (can get quite large)
+data/podcasts.txt
