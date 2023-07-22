@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/app"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/config"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/logger"
@@ -44,10 +45,6 @@ func Init() {
 
 func main() {
 	Init()
-
-	println()
-	fmt.Println("======================")
-	fmt.Println("Podcast Feed Fetcher")
-	fmt.Println("======================")
-
+	logger.PrintHeading("Podcast Feed Fetcher")
+	app.Start()
 }

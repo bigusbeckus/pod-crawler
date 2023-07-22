@@ -23,10 +23,10 @@ type Config struct {
 		Port     uint16 `yaml:"port" default:"80" validate:"required"`
 		User     string `yaml:"user" default:"postgres" validate:"required"`
 	} `yaml:"database" validate:"required"`
-	Input struct {
-		PodcastListFile string `yaml:"podcastListFile" default:"data/podcasts.txt" validate:"required"`
-	} `yaml:"input" validate:"required"`
-	LogDestination string `yaml:"logDestination" default:"logs/" validate:"required"`
+	ConcurrentFetchBatchSize int    `yaml:"concurrentFetchBatchSize" default:"100" validate:"required"`
+	SingleFetchIDsCount      int    `yaml:"singleFetchIdsCount" default:"100" validate:"required"`
+	PodcastListFile          string `yaml:"podcastListFile" default:"data/podcasts.txt" validate:"required"`
+	LogDestination           string `yaml:"logDestination" default:"logs/" validate:"required"`
 }
 
 var AppConfig *Config
