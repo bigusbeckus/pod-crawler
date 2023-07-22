@@ -1,62 +1,28 @@
 package models
 
-import "gorm.io/gorm"
+type Podcast struct {
+	Model
 
-type PodcastData struct {
-	WrapperType            string  `json:"wrapperType"`
-	Kind                   string  `json:"kind"`
-	ArtistId               int     `json:"artistId"`
-	TrackId                int     `json:"trackId"`
-	ArtistName             string  `json:"artistName"`
-	CollectionName         string  `json:"collectionName"`
-	TrackName              string  `json:"trackName"`
-	CollectionCensoredName string  `json:"collectionCensoredName"`
-	TrackCensoredName      string  `json:"trackCensoredName"`
-	ArtistViewUrl          string  `json:"artistViewUrl"`
-	CollectionViewUrl      string  `json:"collectionViewUrl"`
-	FeedUrl                string  `json:"feedUrl"`
-	TrackViewUrl           string  `json:"trackViewUrl"`
-	ArtworkUrl30           string  `json:"artworkUrl30"`
-	ArtworkUrl60           string  `json:"artworkUrl60"`
-	ArtworkUrl100          string  `json:"artworkUrl100"`
-	CollectionPrice        float64 `json:"collectionPrice"`
-	TrackPrice             float64 `json:"trackPrice"`
-	TrackRentalPrice       float64 `json:"trackRentalPrice"`
-	CollectionHdPrice      float64 `json:"collectionHdPrice"`
-	TrackHdPrice           float64 `json:"trackHdPrice"`
-	TrackHdRentalPrice     float64 `json:"trackHdRentalPrice"`
-	ReleaseDate            string  `json:"releaseDate"`
-	CollectionExplicitness string  `json:"collectionExplicitness"`
-	TrackExplicitness      string  `json:"trackExplicitness"`
-	TrackCount             int     `json:"trackCount"`
-	Country                string  `json:"country"`
-	Currency               string  `json:"currency"`
-	PrimaryGenreName       string  `json:"primaryGenreName"`
-	ContentAdvisoryRating  string  `json:"contentAdvisoryRating"`
-	ArtworkUrl600          string  `json:"artworkUrl600"`
-}
+	Title         string `gorm:"not null;index:,type:btree"`
+	CensoredTitle string `gorm:"not null;index:,type:btree"`
+	FeedUrl       string `gorm:"unique"`
+	ReleaseDate   string
+	Description   string
 
-type Genre struct {
-	gorm.Model
-	ID   int
-	Name string
-}
+	Country               string
+	EpisodeCount          int
+	ContentAdvisoryRating string
 
-// type PodcastGenres struct {
-// 	gorm.Model
-// 	PodcastId int
-// 	Genre     string
-// }
+	ItunesViewUrl       string
+	ItunesArtworkUrl30  string
+	ItunesArtworkUrl60  string
+	ItunesArtworkUrl100 string
+	ItunesArtworkUrl600 string
 
-type PodcastModel struct {
-	gorm.Model
-	PodcastData
-	ID     int
-	Genres []Genre `gorm:"foreignKey:ID"`
-}
+	PrimaryGenreID string
+	ArtistID       string `gorm:"not null"`
 
-type PodcastEntry struct {
-	PodcastData
-	CollectionId int      `json:"collectionId"`
-	Genres       []string `json:"genres"`
+	PrimaryGenre  Genre `gorm:"foreignKey:PrimaryGenreID"`
+	Artist        Artist
+	PodcastGenres []PodcastGenre
 }

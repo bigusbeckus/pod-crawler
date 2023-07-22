@@ -16,7 +16,7 @@ import (
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
 )
 
-type PodcastEntry = models.PodcastEntry
+type PodcastEntry = models.Podcast
 type LookupResponse struct {
 	ResultCount int            `json:"resultCount"`
 	Results     []PodcastEntry `json:"results"`

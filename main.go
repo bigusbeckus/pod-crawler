@@ -31,20 +31,24 @@ func Init() {
 	}
 	fmt.Println("Done")
 
-	// Run database migrations
-	fmt.Print("Running database migrations...")
-	err = database.RunMigrations()
-	if err != nil {
-		fmt.Printf("\n%v\n", err.Error())
-		os.Exit(1)
-	}
-	fmt.Println("Done")
-
 	fmt.Println("Initialization complete")
+}
+
+func SetupDB() {
+	// Run database migrations
+	logger.Info.Println("Database migrations started")
+	err := database.RunMigrations()
+	if err != nil {
+		logger.Error.Fatalf("\n%v\n", err.Error())
+	}
+	logger.Info.Println("Database migrations successful")
 }
 
 func main() {
 	Init()
 	logger.PrintHeading("Podcast Feed Fetcher")
+
+	SetupDB()
+
 	app.Start()
 }
