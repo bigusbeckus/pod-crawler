@@ -25,7 +25,7 @@ type FetcherResponse struct {
 }
 
 type Fetcher struct {
-	idPool            structures.Pool[string]
+	idPool            structures.Pool[uint64]
 	concurrentFetches int
 	maxIdsPerFetch    int
 	ticker            *time.Ticker
@@ -33,17 +33,17 @@ type Fetcher struct {
 	responseChannel   chan FetcherResponse
 }
 
-func (f *Fetcher) Append(ids ...string) {
+func (f *Fetcher) Append(ids ...uint64) {
 	f.idPool.Put(ids...)
 }
 
-func NewFetcher(ids []string, concurrentFetches int, maxIdsPerFetch int) *Fetcher {
+func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *Fetcher {
 	seconds := time.Duration(3) // Approximates the iTunes API rate limit (20 calls/minute)
 	t := time.NewTicker(seconds * time.Second)
 	logger.Info.Printf("Ticker created, fires every %d seconds\n", seconds)
 
 	f := &Fetcher{
-		idPool:            structures.CreatePool[string](ids),
+		idPool:            structures.CreatePool[uint64](ids),
 		concurrentFetches: concurrentFetches,
 		maxIdsPerFetch:    maxIdsPerFetch,
 		ticker:            t,

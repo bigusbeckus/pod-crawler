@@ -1,16 +1,28 @@
 package utils
 
 import (
+	"errors"
+	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
-func ExtractPodcastId(podcastUrl string) string {
+func ExtractPodcastId(podcastUrl string) (uint64, error) {
 	if !StringIncludes(podcastUrl, "/") {
-		panic("Not a valid url")
+		return 0, errors.New(
+			fmt.Sprintf("invalid podcast url: %s", podcastUrl),
+		)
 	}
+
 	parts := strings.Split(podcastUrl, "/id")
-	return parts[1]
+
+	id, err := strconv.ParseUint(parts[len(parts)-1], 0, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
 }
 
 func CreateBatchLookupLinks(baseUrl string, podcastIds []string, batchSize int) []string {

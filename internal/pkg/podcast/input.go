@@ -21,19 +21,24 @@ func loadInputFile(filename string) ([]string, error) {
 	return contentLines, nil
 }
 
-func extractIDs(urls []string) []string {
+func extractIDs(urls []string) []uint64 {
 	length := len(urls)
 
-	ids := make([]string, length)
+	ids := make([]uint64, length)
 	for i, value := range urls {
-		ids[i] = utils.ExtractPodcastId(value)
+		id, err := utils.ExtractPodcastId(value)
+		if err != nil {
+			logger.Error.Print(err)
+			continue
+		}
+		ids[i] = id
 	}
 
-	logger.Info.Printf("Extracted IDs from %d URLs\n", length)
+	logger.Info.Printf("Extracted %d IDs from %d URLs\n", len(ids), length)
 	return ids
 }
 
-func GetIDs() ([]string, error) {
+func GetIDs() ([]uint64, error) {
 	urls, err := loadInputFile(config.AppConfig.PodcastListFile)
 	if err != nil {
 		return nil, err
