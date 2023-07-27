@@ -17,6 +17,9 @@ clean:
 run:
 	./$(OUTFILE)
 
+test:
+	go test -v ./...
+
 debug: build run
 
 .PHONY: fmtcheck staticcheck
