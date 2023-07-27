@@ -1,10 +1,15 @@
 package podcast
 
+import (
+	"encoding/json"
+)
+
 type ItunesResult struct {
 	WrapperType            string  `json:"wrapperType"`
 	Kind                   string  `json:"kind"`
 	ArtistId               int     `json:"artistId"`
 	TrackId                int     `json:"trackId"`
+	CollectionId           int     `json:"collectionId"`
 	ArtistName             string  `json:"artistName"`
 	CollectionName         string  `json:"collectionName"`
 	TrackName              string  `json:"trackName"`
@@ -37,4 +42,15 @@ type ItunesResult struct {
 type ItunesLookupResponse struct {
 	ResultCount int            `json:"resultCount"`
 	Results     []ItunesResult `json:"results"`
+}
+
+func ParseLookupResponse(response string) (*ItunesLookupResponse, error) {
+	var parsed ItunesLookupResponse
+
+	err := json.Unmarshal([]byte(response), &parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
 }
