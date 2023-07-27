@@ -18,7 +18,7 @@ func Start() {
 		logger.Error.Fatalf("Failed to get podcast IDs from input: %v", err)
 	}
 
-	ids, err = FilterCrawled(ids)
+	ids, err = filterCrawled(ids)
 	if err != nil {
 		logger.Error.Fatalf("Failed to filter out crawled podcasts: %v", err)
 	}
@@ -52,7 +52,7 @@ func Start() {
 	}
 }
 
-func FilterCrawled(ids []uint64) ([]uint64, error) {
+func filterCrawled(ids []uint64) ([]uint64, error) {
 	db, err := database.GetInstance()
 	if err != nil {
 		return nil, err
@@ -72,3 +72,4 @@ func FilterCrawled(ids []uint64) ([]uint64, error) {
 
 	return unprocessedIds, nil
 }
+

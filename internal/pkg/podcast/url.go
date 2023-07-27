@@ -1,4 +1,4 @@
-package utils
+package podcast
 
 import (
 	"errors"
@@ -6,10 +6,13 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/logger"
+	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/utils"
 )
 
-func ExtractPodcastId(podcastUrl string) (uint64, error) {
-	if !StringIncludes(podcastUrl, "/") {
+func parseUrl(podcastUrl string) (uint64, error) {
+	if !utils.StringIncludes(podcastUrl, "/") {
 		return 0, errors.New(
 			fmt.Sprintf("invalid podcast url: %s", podcastUrl),
 		)
@@ -23,6 +26,24 @@ func ExtractPodcastId(podcastUrl string) (uint64, error) {
 	}
 
 	return id, nil
+}
+
+// Extracts ids given a list of podcast urls
+func extractIDs(urls []string) []uint64 {
+	length := len(urls)
+
+	ids := make([]uint64, length)
+	for i, value := range urls {
+		id, err := parseUrl(value)
+		if err != nil {
+			logger.Warn.Print(err)
+			continue
+		}
+		ids[i] = id
+	}
+
+	logger.Info.Printf("Extracted %d IDs from %d URLs\n", len(ids), length)
+	return ids
 }
 
 func CreateBatchLookupLinks(baseUrl string, podcastIds []string, batchSize int) []string {
