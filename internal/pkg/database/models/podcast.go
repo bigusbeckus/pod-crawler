@@ -13,7 +13,8 @@ type Podcast struct {
 	EpisodeCount          int
 	ContentAdvisoryRating string
 
-	ItunesViewUrl       string
+	ItunesID            uint64 `gorm:"unique"`
+	ItunesViewUrl       string `gorm:"unique"`
 	ItunesArtworkUrl30  string
 	ItunesArtworkUrl60  string
 	ItunesArtworkUrl100 string
