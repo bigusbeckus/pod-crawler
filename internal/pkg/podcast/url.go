@@ -34,14 +34,18 @@ func parseUrl(podcastUrl string) (uint64, error) {
 func extractIDs(urls []string) []uint64 {
 	length := len(urls)
 
-	ids := make([]uint64, length)
-	for i, value := range urls {
+	ids := make([]uint64, 0, length)
+	for _, value := range urls {
 		id, err := parseUrl(value)
+		if id == 0 {
+			logger.Warn.Println("Failed to parse a url")
+			continue
+		}
 		if err != nil {
 			logger.Warn.Print(err)
 			continue
 		}
-		ids[i] = id
+		ids = append(ids, id)
 	}
 
 	logger.Info.Printf("Extracted %d IDs from %d URLs\n", len(ids), length)
@@ -64,15 +68,23 @@ func CreateBatchLookupUrls(baseUrl string, podcastIds []uint64, idsPerUrl int) [
 }
 
 func ExtractLookupIDs(url string) []uint64 {
+	if url == "" {
+		return []uint64{}
+	}
+
 	parts := strings.Split(url, "&id=")
+	if len(parts) < 2 {
+		return []uint64{}
+	}
+
 	idParams := parts[1]
 	idStrs := strings.Split(idParams, ",")
 
-	ids := make([]uint64, len(idStrs))
+	ids := make([]uint64, 0, len(idStrs))
 	for _, id := range idStrs {
 		idNum, err := strconv.ParseUint(id, 0, 0)
 		if err != nil {
-			idNum = 0
+			continue
 		}
 		ids = append(ids, idNum)
 	}
