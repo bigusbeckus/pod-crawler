@@ -21,16 +21,16 @@ const (
 	Resume
 )
 
-type fetchResponseData struct {
+type FetchResponseData struct {
 	Url     string
 	Payload string
 }
 
-type fetchResponse struct {
+type FetchResponse struct {
 	Success     bool
 	IsBodyValid bool
 	Status      int
-	Data        fetchResponseData
+	Data        FetchResponseData
 }
 
 type fetcher struct {
@@ -41,7 +41,7 @@ type fetcher struct {
 	ticker          *time.Ticker
 	lastFetchEnd    time.Time
 	commandChannel  chan FetcherCommand
-	responseChannel chan fetchResponse
+	responseChannel chan FetchResponse
 	fetchWaitGroup  sync.WaitGroup
 
 	pause bool
@@ -57,12 +57,12 @@ func NewFetchResponse(
 	isBodyValid bool,
 	url string,
 	payload string,
-) fetchResponse {
-	return fetchResponse{
+) FetchResponse {
+	return FetchResponse{
 		Success:     success,
 		IsBodyValid: isBodyValid,
 		Status:      status,
-		Data: fetchResponseData{
+		Data: FetchResponseData{
 			Url:     url,
 			Payload: payload,
 		},
@@ -83,7 +83,7 @@ func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *fetche
 		lastFetchEnd: utils.TimeUnixEpochStart,
 
 		commandChannel:  make(chan FetcherCommand),
-		responseChannel: make(chan fetchResponse),
+		responseChannel: make(chan FetchResponse),
 		fetchWaitGroup:  sync.WaitGroup{},
 	}
 
@@ -198,7 +198,7 @@ func (f *fetcher) onCommand(command FetcherCommand) {
 	}
 }
 
-func (f *fetcher) Start() chan fetchResponse {
+func (f *fetcher) Start() chan FetchResponse {
 	go func() {
 		logger.Info.Println("Podcast fetcher pulse goroutine created")
 		for {
