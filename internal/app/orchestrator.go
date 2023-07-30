@@ -162,12 +162,19 @@ func (o *orchestrator) onFetchResponse(msg podcast.FetchResponse) {
 
 func (o *orchestrator) onFetchSuccess(url string, payload string) {
 	p, err := podcast.ParseLookupResponse(payload)
-	if err != nil {
-		ids := podcast.ExtractLookupIDs(url)
-		o.Fail(ids)
+	// Success
+	if err == nil {
+		o.Succeed(p.Results)
 	}
 
-	o.Succeed(p.Results)
+	ids := podcast.ExtractLookupIDs(url)
+	if err != nil {
+		// Failure
+		o.Fail(ids)
+	} else {
+		// Success but requires ids
+		go o.handleUnfetched(ids, p.Results)
+	}
 }
 
 func (o *orchestrator) onFetchFail(isBodyValid bool, url string) {
@@ -186,4 +193,15 @@ func (o *orchestrator) onFetchFail(isBodyValid bool, url string) {
 		len(failedIds),
 	)
 	o.Requeue(failedIds)
+}
+
+func (o *orchestrator) handleUnfetched(ids []uint64, results []podcast.ItunesResult) {
+	resultIds := make([]uint64, len(results))
+	for i := range results {
+		resultIds[i] = uint64(results[i].CollectionId)
+	}
+
+	unfetchedIds := utils.LeftDiff(ids, resultIds)
+	logger.Info.Printf("Requeued %d ids that were missing from result", len(unfetchedIds))
+	o.Requeue(unfetchedIds)
 }
