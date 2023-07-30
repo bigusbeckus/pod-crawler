@@ -25,6 +25,7 @@ type Config struct {
 	} `yaml:"database" validate:"required"`
 	ConcurrentFetchBatchSize int    `yaml:"concurrentFetchBatchSize" default:"100" validate:"required"`
 	SingleFetchIDsCount      int    `yaml:"singleFetchIdsCount" default:"100" validate:"required"`
+	SaveTreshold             int    `yaml:"saveTreshold" default:"50000" validate:"required"`
 	PodcastListFile          string `yaml:"podcastListFile" default:"data/podcasts.txt" validate:"required"`
 	LogDestination           string `yaml:"logDestination" default:"logs/" validate:"required"`
 }

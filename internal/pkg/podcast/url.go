@@ -62,3 +62,20 @@ func CreateBatchLookupUrls(baseUrl string, podcastIds []uint64, idsPerUrl int) [
 
 	return urls
 }
+
+func ExtractLookupIDs(url string) []uint64 {
+	parts := strings.Split(url, "&id=")
+	idParams := parts[1]
+	idStrs := strings.Split(idParams, ",")
+
+	ids := make([]uint64, len(idStrs))
+	for _, id := range idStrs {
+		idNum, err := strconv.ParseUint(id, 0, 0)
+		if err != nil {
+			idNum = 0
+		}
+		ids = append(ids, idNum)
+	}
+
+	return ids
+}

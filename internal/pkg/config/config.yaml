@@ -7,4 +7,5 @@ database:
 podcastListFile: data/podcasts.txt
 concurrentFetchBatchSize: 100
 singleFetchIdsCount: 100
+saveTreshold: 50000
 logDestination: logs/

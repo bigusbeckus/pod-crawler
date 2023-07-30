@@ -33,22 +33,26 @@ type FetchResponse struct {
 	Data        FetchResponseData
 }
 
-type fetcher struct {
+type Fetcher struct {
 	idPool            structures.Pool[uint64]
 	concurrentFetches int
 	maxIdsPerFetch    int
 
 	ticker          *time.Ticker
 	lastFetchEnd    time.Time
-	commandChannel  chan FetcherCommand
-	responseChannel chan FetchResponse
+	CommandChannel  chan FetcherCommand
+	ResponseChannel chan FetchResponse
 	fetchWaitGroup  sync.WaitGroup
 
 	pause bool
 }
 
-func (f *fetcher) Append(ids ...uint64) {
+func (f *Fetcher) Append(ids ...uint64) {
 	f.idPool.Put(ids...)
+}
+
+func (f *Fetcher) Shuffle() {
+	f.idPool.Shuffle()
 }
 
 func NewFetchResponse(
@@ -69,12 +73,12 @@ func NewFetchResponse(
 	}
 }
 
-func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *fetcher {
+func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *Fetcher {
 	seconds := time.Duration(3) // Approximates the iTunes API rate limit (20 calls/minute)
 	t := time.NewTicker(seconds * time.Second)
 	logger.Info.Printf("Ticker created, fires every %d seconds\n", seconds)
 
-	f := &fetcher{
+	f := &Fetcher{
 		idPool:            structures.CreatePool[uint64](ids),
 		concurrentFetches: concurrentFetches,
 		maxIdsPerFetch:    maxIdsPerFetch,
@@ -82,8 +86,8 @@ func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *fetche
 		ticker:       t,
 		lastFetchEnd: utils.TimeUnixEpochStart,
 
-		commandChannel:  make(chan FetcherCommand),
-		responseChannel: make(chan FetchResponse),
+		CommandChannel:  make(chan FetcherCommand),
+		ResponseChannel: make(chan FetchResponse),
 		fetchWaitGroup:  sync.WaitGroup{},
 	}
 
@@ -95,16 +99,13 @@ func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *fetche
 	return f
 }
 
-func (f *fetcher) fetch(url string) {
-	// defer f.fetchWaitGroup.Done()
-
+func (f *Fetcher) fetch(url string) {
 	resp, err := http.Get(url)
 	f.fetchWaitGroup.Done()
-	logger.Info.Println("Done fetch")
 
 	if err != nil || resp.StatusCode != 200 {
 		go func() {
-			f.responseChannel <- NewFetchResponse(
+			f.ResponseChannel <- NewFetchResponse(
 				false,
 				resp.StatusCode,
 				true,
@@ -119,7 +120,7 @@ func (f *fetcher) fetch(url string) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		go func() {
-			f.responseChannel <- NewFetchResponse(
+			f.ResponseChannel <- NewFetchResponse(
 				false,
 				resp.StatusCode,
 				false,
@@ -131,7 +132,7 @@ func (f *fetcher) fetch(url string) {
 	}
 
 	go func() {
-		f.responseChannel <- NewFetchResponse(
+		f.ResponseChannel <- NewFetchResponse(
 			true,
 			resp.StatusCode,
 			true,
@@ -141,8 +142,13 @@ func (f *fetcher) fetch(url string) {
 	}()
 }
 
-func (f *fetcher) onTick(t time.Time) {
+func (f *Fetcher) onTick(t time.Time) {
 	logger.Info.Println("Pulse at:", t)
+
+	if f.pause {
+		logger.Info.Println("Fetcher paused. No actions performed this pulse.")
+		return
+	}
 
 	tresholdSeconds := 3
 	timeSinceFetchEnd := t.Sub(f.lastFetchEnd)
@@ -151,14 +157,9 @@ func (f *fetcher) onTick(t time.Time) {
 		return
 	}
 
-	if f.pause {
-		logger.Info.Println("Fetcher paused. No actions performed this pulse.")
-		return
-	}
-
 	if f.idPool.Length() == 0 {
-		logger.Success.Println("Out of ids")
-		return
+		logger.Success.Println("Done crawling IDs")
+		os.Exit(0)
 	}
 
 	batch := f.idPool.Take(f.concurrentFetches * f.maxIdsPerFetch)
@@ -183,7 +184,7 @@ func (f *fetcher) onTick(t time.Time) {
 	f.lastFetchEnd = time.Now()
 }
 
-func (f *fetcher) onCommand(command FetcherCommand) {
+func (f *Fetcher) onCommand(command FetcherCommand) {
 	logger.Info.Printf("Command received: %d", command)
 
 	if command == Stop {
@@ -198,7 +199,7 @@ func (f *fetcher) onCommand(command FetcherCommand) {
 	}
 }
 
-func (f *fetcher) Start() chan FetchResponse {
+func (f *Fetcher) Start() {
 	go func() {
 		logger.Info.Println("Podcast fetcher pulse goroutine created")
 		for {
@@ -206,12 +207,11 @@ func (f *fetcher) Start() chan FetchResponse {
 			case t := <-f.ticker.C:
 				logger.System.Println("Running Goroutines:", runtime.NumGoroutine())
 				f.onTick(t)
-			case command := <-f.commandChannel:
+			case command := <-f.CommandChannel:
 				f.onCommand(command)
 			}
 		}
 	}()
 
 	logger.Info.Println("Podcast fetcher started")
-	return f.responseChannel
 }

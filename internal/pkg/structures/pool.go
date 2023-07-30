@@ -2,6 +2,7 @@ package structures
 
 import (
 	"math"
+	"math/rand"
 	"sync"
 )
 
@@ -9,6 +10,7 @@ type Pool[T any] interface {
 	Put(...T)
 	Take(int) []T
 	Length() int
+	Shuffle()
 }
 
 type pool[T any] struct {
@@ -33,6 +35,15 @@ func (p pool[T]) Take(count int) []T {
 	p.mutex.Unlock()
 
 	return currentBatch
+}
+
+func (p pool[T]) Shuffle() {
+	p.mutex.Lock()
+	for i := range p.values {
+		j := rand.Intn(i + 1)
+		p.values[i], p.values[j] = p.values[j], p.values[i]
+	}
+	p.mutex.Unlock()
 }
 
 func (p pool[T]) Length() int {

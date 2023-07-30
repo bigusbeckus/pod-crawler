@@ -50,5 +50,5 @@ func main() {
 
 	SetupDB()
 
-	app.Start()
+	app.Start(config.AppConfig.SaveTreshold)
 }
