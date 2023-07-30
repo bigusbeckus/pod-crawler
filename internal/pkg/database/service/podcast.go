@@ -54,7 +54,7 @@ func PodcastFromItunesResult(result podcast.ItunesResult) (*models.Podcast, erro
 	}
 
 	var genres []models.Genre
-	db.Where("Name IN ?", result.Genres).Find(genres)
+	db.Where("name IN ?", result.Genres).Find(&genres)
 	for _, genreName := range result.Genres {
 		found := false
 		for _, genre := range genres {

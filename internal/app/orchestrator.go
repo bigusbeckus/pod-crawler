@@ -114,7 +114,7 @@ func (o *orchestrator) Save() {
 		podcasts = append(podcasts, *p)
 	}
 
-	tx := db.Save(podcasts)
+	tx := db.Create(podcasts)
 	if tx.Error != nil {
 		logger.Error.Println("Save failed: Unable to save results to database")
 		o.fetcher.CommandChannel <- podcast.Pause
