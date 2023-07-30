@@ -24,7 +24,7 @@ type FetcherResponse struct {
 	Payload string
 }
 
-type Fetcher struct {
+type fetcher struct {
 	idPool            structures.Pool[uint64]
 	concurrentFetches int
 	maxIdsPerFetch    int
@@ -33,16 +33,16 @@ type Fetcher struct {
 	responseChannel   chan FetcherResponse
 }
 
-func (f *Fetcher) Append(ids ...uint64) {
+func (f *fetcher) Append(ids ...uint64) {
 	f.idPool.Put(ids...)
 }
 
-func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *Fetcher {
+func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *fetcher {
 	seconds := time.Duration(3) // Approximates the iTunes API rate limit (20 calls/minute)
 	t := time.NewTicker(seconds * time.Second)
 	logger.Info.Printf("Ticker created, fires every %d seconds\n", seconds)
 
-	f := &Fetcher{
+	f := &fetcher{
 		idPool:            structures.CreatePool[uint64](ids),
 		concurrentFetches: concurrentFetches,
 		maxIdsPerFetch:    maxIdsPerFetch,
@@ -59,7 +59,7 @@ func NewFetcher(ids []uint64, concurrentFetches int, maxIdsPerFetch int) *Fetche
 	return f
 }
 
-func (f *Fetcher) onTick(t time.Time) {
+func (f *fetcher) onTick(t time.Time) {
 	logger.Info.Println("Pulse at:", t)
 	logger.System.Println("Running Goroutines:", runtime.NumGoroutine())
 
@@ -81,7 +81,7 @@ func (f *Fetcher) onTick(t time.Time) {
 	}
 }
 
-func (f *Fetcher) Start() chan FetcherResponse {
+func (f *fetcher) Start() chan FetcherResponse {
 	go func() {
 		logger.Info.Println("Podcast fetcher pulse goroutine created")
 		for {
