@@ -10,11 +10,11 @@ type colorWriter struct {
 	out io.Writer
 }
 
-const infoPrefix    = "[  INFO   ]  "
-const warnPrefix    = "[  WARN   ]  "
-const errorPrefix   = "[  ERROR  ]  "
+const infoPrefix = "[  INFO   ]  "
+const warnPrefix = "[  WARN   ]  "
+const errorPrefix = "[  ERROR  ]  "
 const successPrefix = "[ SUCCESS ]  "
-const systemPrefix  = "[ SYSTEM  ]  "
+const systemPrefix = "[ SYSTEM  ]  "
 
 func (cw *colorWriter) Write(p []byte) (n int, err error) {
 	str := string(p)
