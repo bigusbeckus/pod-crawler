@@ -1,5 +1,15 @@
 package utils
 
+import (
+	"fmt"
+
+	"golang.org/x/exp/constraints"
+)
+
+type Number interface {
+	constraints.Integer | constraints.Float
+}
+
 func ArrayIncludes[T comparable](arr []T, element T) bool {
 	for _, value := range arr {
 		if value == element {
@@ -43,4 +53,18 @@ func LeftDiff[T comparable](a []T, b []T) []T {
 	}
 
 	return uniqueToA
+}
+
+func JoinNumbers[T Number](elems []T, sep string) string {
+	idsStr := ""
+
+	for i, id := range elems {
+		separator := ""
+		if i != 0 {
+			separator = sep
+		}
+		idsStr = idsStr + separator + fmt.Sprint(id)
+	}
+
+	return idsStr
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/utils"
 )
 
+const PODCAST_LOOKUP_URL_BASE = "https://itunes.apple.com/lookup?entity=podcast&id="
+
 func parseUrl(podcastUrl string) (uint64, error) {
 	if !utils.StringIncludes(podcastUrl, "/") {
 		return 0, errors.New(
@@ -46,17 +48,17 @@ func extractIDs(urls []string) []uint64 {
 	return ids
 }
 
-func CreateBatchLookupLinks(baseUrl string, podcastIds []string, batchSize int) []string {
-	batchLinksCount := int(math.Ceil(float64(len(podcastIds)) / float64(batchSize)))
-	batchLinks := make([]string, batchLinksCount)
+func CreateBatchLookupUrls(baseUrl string, podcastIds []uint64, idsPerUrl int) []string {
+	urlsCount := int(math.Ceil(float64(len(podcastIds)) / float64(idsPerUrl)))
+	urls := make([]string, urlsCount)
 
-	for i := range batchLinks {
-		startIndex := i * batchSize
-		endIndex := int(math.Min(float64(startIndex)+float64(batchSize), float64(len(podcastIds))))
+	for i := range urls {
+		startIndex := i * idsPerUrl
+		endIndex := int(math.Min(float64(startIndex)+float64(idsPerUrl), float64(len(podcastIds))))
 
 		currentBatch := podcastIds[startIndex:endIndex]
-		batchLinks[i] = baseUrl + strings.Join(currentBatch, ",")
+		urls[i] = baseUrl + utils.JoinNumbers(currentBatch, ",") // strings.Join(currentBatch, ",")
 	}
 
-	return batchLinks
+	return urls
 }

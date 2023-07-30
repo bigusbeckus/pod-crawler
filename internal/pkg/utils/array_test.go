@@ -42,3 +42,27 @@ func TestLeftDiff(t *testing.T) {
 		}
 	})
 }
+
+func TestJoinNumbers(t *testing.T) {
+	t.Run("Returns joined ids on valid input", func(t *testing.T) {
+		validInput := []uint64{123, 234, 456}
+		separator := ","
+		expected := "123,234,456"
+
+		result := utils.JoinNumbers(validInput, separator)
+		if result != expected {
+			t.Fatalf("JoinNumbers() returned an incorrect result.\nExpected: %s\nResult: %s\n", expected, result)
+		}
+	})
+
+	t.Run("Returns empty string on empty slice", func(t *testing.T) {
+		emptySlice := []int{}
+		separator := ","
+		expected := ""
+
+		result := utils.JoinNumbers(emptySlice, separator)
+		if result != expected {
+			t.Fatalf("JoinNumbers() returned an incorrect result.\nExpected: \"\" (empty string)\nResult: %s\n", result)
+		}
+	})
+}

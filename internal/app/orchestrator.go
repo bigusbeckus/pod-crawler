@@ -46,8 +46,7 @@ func Start() {
 				currentLogger = logger.Error
 			}
 
-			currentLogger.Printf("Status: %s\n", r.Status)
-			logger.Info.Printf(r.Payload)
+			currentLogger.Printf("Status: %d\n", r.Status)
 		}
 	}
 }
@@ -72,4 +71,3 @@ func filterCrawled(ids []uint64) ([]uint64, error) {
 
 	return unprocessedIds, nil
 }
-
