@@ -18,13 +18,13 @@ type pool[T any] struct {
 	mutex  *sync.Mutex
 }
 
-func (p pool[T]) Put(items ...T) {
+func (p *pool[T]) Put(items ...T) {
 	p.mutex.Lock()
 	p.values = append(p.values, items...)
 	p.mutex.Unlock()
 }
 
-func (p pool[T]) Take(count int) []T {
+func (p *pool[T]) Take(count int) []T {
 	p.mutex.Lock()
 
 	length := len(p.values)
@@ -37,7 +37,7 @@ func (p pool[T]) Take(count int) []T {
 	return currentBatch
 }
 
-func (p pool[T]) Shuffle() {
+func (p *pool[T]) Shuffle() {
 	p.mutex.Lock()
 	for i := range p.values {
 		j := rand.Intn(i + 1)
@@ -51,7 +51,7 @@ func (p pool[T]) Length() int {
 }
 
 func CreatePool[T any](items []T) Pool[T] {
-	return pool[T]{
+	return &pool[T]{
 		values: items,
 		mutex:  &sync.Mutex{},
 	}
