@@ -165,6 +165,7 @@ func (o *orchestrator) onFetchSuccess(url string, payload string) {
 	// Success
 	if err == nil {
 		o.Succeed(p.Results)
+		logger.Success.Printf("Saved %d results, %d total\n", len(p.Results), o.payloads.Length())
 	}
 
 	ids := podcast.ExtractLookupIDs(url)
