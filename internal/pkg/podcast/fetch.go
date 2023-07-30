@@ -164,13 +164,12 @@ func (f *Fetcher) onTick(t time.Time) {
 
 	batch := f.idPool.Take(f.concurrentFetches * f.maxIdsPerFetch)
 
-	logger.Info.Printf("Preparing %d ids for fetch\n", len(batch))
 	urls := CreateBatchLookupUrls(
 		PODCAST_LOOKUP_URL_BASE,
 		batch,
 		f.maxIdsPerFetch,
 	)
-	logger.Info.Println("IDs prepared")
+	logger.Info.Printf("Created %d urls from %d ids\n", len(urls), len(batch))
 
 	logger.Info.Printf("Firing %d concurrent requests...\n", len(urls))
 	for _, url := range urls {
