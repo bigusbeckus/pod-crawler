@@ -7,17 +7,17 @@ import (
 type ItunesResult struct {
 	WrapperType            string   `json:"wrapperType"`
 	Kind                   string   `json:"kind"`
-	ArtistId               int      `json:"artistId"`
-	TrackId                int      `json:"trackId"`
-	CollectionId           int      `json:"collectionId"`
+	ArtistId               *uint32  `json:"artistId"`
+	TrackId                uint32   `json:"trackId"`
+	CollectionId           uint32   `json:"collectionId"`
 	ArtistName             string   `json:"artistName"`
-	CollectionName         string   `json:"collectionName"`
+	CollectionName         *string  `json:"collectionName"`
 	TrackName              string   `json:"trackName"`
-	CollectionCensoredName string   `json:"collectionCensoredName"`
+	CollectionCensoredName *string  `json:"collectionCensoredName"`
 	TrackCensoredName      string   `json:"trackCensoredName"`
-	ArtistViewUrl          string   `json:"artistViewUrl"`
+	ArtistViewUrl          *string  `json:"artistViewUrl"`
 	CollectionViewUrl      string   `json:"collectionViewUrl"`
-	FeedUrl                string   `json:"feedUrl"`
+	FeedUrl                *string  `json:"feedUrl"`
 	TrackViewUrl           string   `json:"trackViewUrl"`
 	ArtworkUrl30           string   `json:"artworkUrl30"`
 	ArtworkUrl60           string   `json:"artworkUrl60"`
@@ -31,10 +31,10 @@ type ItunesResult struct {
 	ReleaseDate            string   `json:"releaseDate"`
 	CollectionExplicitness string   `json:"collectionExplicitness"`
 	TrackExplicitness      string   `json:"trackExplicitness"`
-	TrackCount             int      `json:"trackCount"`
+	TrackCount             uint32   `json:"trackCount"`
 	Country                string   `json:"country"`
 	Currency               string   `json:"currency"`
-	PrimaryGenreName       string   `json:"primaryGenreName"`
+	PrimaryGenreName       *string  `json:"primaryGenreName"`
 	ContentAdvisoryRating  string   `json:"contentAdvisoryRating"`
 	ArtworkUrl600          string   `json:"artworkUrl600"`
 	GenreIds               []string `json:"genreIds"`
@@ -42,7 +42,7 @@ type ItunesResult struct {
 }
 
 type ItunesLookupResponse struct {
-	ResultCount int            `json:"resultCount"`
+	ResultCount uint16         `json:"resultCount"`
 	Results     []ItunesResult `json:"results"`
 }
 

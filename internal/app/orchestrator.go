@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"strings"
 
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/config"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database"
@@ -11,6 +12,7 @@ import (
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/podcast"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/structures"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/utils"
+	// "gorm.io/gorm/clause"
 )
 
 type orchestrator struct {
@@ -86,48 +88,45 @@ func filterCrawled(ids []uint64) ([]uint64, error) {
 }
 
 func (o *orchestrator) Save() {
-	db, err := database.GetInstance()
-	if err != nil {
-		logger.Error.Println("Save failed: Unable to get database instance")
-		o.fetcher.CommandChannel <- podcast.Pause
-
-		utils.IncrementalBackoff(func() error {
-			db, err = database.GetInstance()
-			return err
-		})
-		if err != nil {
-			logger.Error.Fatalln("Save failed: Unable to get database instance with incremental backoff")
-		}
-		o.fetcher.CommandChannel <- podcast.Resume
-	}
+	db, _ := database.GetInstance()
+	tx := db.Begin()
 
 	resultsCount := o.payloads.Length()
 	logger.Info.Printf("Converting %d results to models\n", resultsCount)
 	results := o.payloads.Take(resultsCount)
-	podcasts := make([]models.Podcast, resultsCount)
+	podcasts := make([]models.Podcast, 0, resultsCount)
 	for _, result := range results {
 		p, err := service.PodcastFromItunesResult(result)
 		if err != nil {
-			o.fetcher.CommandChannel <- podcast.Stop
-			logger.Error.Fatalln("Save failed: Unable to convert results into database models")
+			tx.Rollback()
+			logger.Error.Fatalf("Save failed: Unable to convert results into database models: %v\n", err)
 		}
 		podcasts = append(podcasts, *p)
 	}
 
-	tx := db.Create(podcasts)
+	tx.CreateInBatches(podcasts, 1000)
 	if tx.Error != nil {
-		logger.Error.Println("Save failed: Unable to save results to database")
+		logger.Error.Printf(
+			"Save failed: Unable to save results to database: %v\nPausing further fetches and retrying...\n",
+			tx.Error,
+		)
 		o.fetcher.CommandChannel <- podcast.Pause
 
-		utils.IncrementalBackoff(func() error {
-			tx = db.Save(podcasts)
+		err := utils.IncrementalBackoff(func() error {
+			tx.CreateInBatches(podcasts, 1000)
 			return tx.Error
 		})
 
-		if tx.Error != nil {
+		if err != nil {
+			tx.Rollback()
 			logger.Error.Fatalln("Save failed: Unable to save results to database with incremental backoff")
 		}
 		o.fetcher.CommandChannel <- podcast.Resume
+	}
+
+	tx.Commit()
+	if tx.Error != nil {
+		logger.Error.Fatalf("Failed to save %d results to database: %v\n", resultsCount, tx.Error)
 	}
 
 	logger.Success.Printf("Successfully saved %d/%d results to database\n", tx.RowsAffected, resultsCount)
@@ -162,20 +161,38 @@ func (o *orchestrator) onFetchResponse(msg podcast.FetchResponse) {
 
 func (o *orchestrator) onFetchSuccess(url string, payload string) {
 	p, err := podcast.ParseLookupResponse(payload)
-	// Success
-	if err == nil {
-		o.Succeed(p.Results)
-		logger.Success.Printf("Saved %d results, %d total\n", len(p.Results), o.payloads.Length())
-	}
-
 	ids := podcast.ExtractLookupIDs(url)
 	if err != nil {
-		// Failure
-		o.Fail(ids)
-	} else {
-		// Success but requires ids
-		go o.handleUnfetched(ids, p.Results)
+		o.Fail(ids) // TODO: Find a way to do individual validation on result entries
 	}
+
+	failures := make([]uint64, 0, p.ResultCount)
+	successes := make([]podcast.ItunesResult, 0, p.ResultCount)
+	for _, result := range p.Results {
+		isCollectionNameEmpty := result.CollectionName == nil || len(strings.TrimSpace(*result.CollectionName)) == 0
+		if isCollectionNameEmpty {
+			failures = append(failures, uint64(result.CollectionId))
+			continue
+		}
+
+		isCollectionCensoredNameEmpty := result.CollectionCensoredName == nil || len(strings.TrimSpace(*result.CollectionCensoredName)) == 0
+		if isCollectionCensoredNameEmpty {
+			result.CollectionCensoredName = result.CollectionName
+		}
+
+		successes = append(successes, result)
+	}
+
+	if len(failures) > 0 {
+		go o.Fail(failures)
+	}
+
+	if len(successes) > 0 {
+		logger.Success.Printf("Parsed %d results, %d total\n", len(successes), o.payloads.Length())
+		go o.Succeed(successes)
+	}
+
+	go o.handleUnfetched(ids, successes)
 }
 
 func (o *orchestrator) onFetchFail(isBodyValid bool, url string) {

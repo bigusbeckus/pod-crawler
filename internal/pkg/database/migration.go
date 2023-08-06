@@ -14,13 +14,11 @@ func RunMigrations() error {
 		return err
 	}
 
-	artistModelErr := db.AutoMigrate(&models.Artist{})
 	genreModelErr := db.AutoMigrate(&models.Genre{})
 	podcastModelErr := db.AutoMigrate(&models.Podcast{})
 	podcastGenreModelErr := db.AutoMigrate(&models.PodcastGenre{})
 
 	err = errors.Join(
-		artistModelErr,
 		genreModelErr,
 		podcastModelErr,
 		podcastGenreModelErr,

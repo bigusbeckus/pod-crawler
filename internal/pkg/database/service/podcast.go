@@ -1,6 +1,8 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/database/models"
 	"github.com/bigusbeckus/podcast-feed-fetcher/internal/pkg/podcast"
@@ -8,78 +10,119 @@ import (
 
 func PodcastFromItunesResult(result podcast.ItunesResult) (*models.Podcast, error) {
 	p := models.Podcast{
-		Title:         result.CollectionName,
-		CensoredTitle: result.CollectionCensoredName,
+		Title:         *result.CollectionName,
+		CensoredTitle: *result.CollectionCensoredName,
 		FeedUrl:       result.FeedUrl,
-		ReleaseDate:   result.ReleaseDate,
-		Description:   "",
+		ArtistName:    &result.ArtistName,
+		ReleaseDate:   &result.ReleaseDate,
 
-		Country:               result.Country,
-		EpisodeCount:          0,
-		ContentAdvisoryRating: result.ContentAdvisoryRating,
+		Country:               &result.Country,
+		EpisodeCount:          &result.TrackCount,
+		ContentAdvisoryRating: &result.ContentAdvisoryRating,
 
-		ItunesID:            uint64(result.CollectionId),
-		ItunesViewUrl:       result.CollectionViewUrl,
-		ItunesArtworkUrl30:  result.ArtworkUrl30,
-		ItunesArtworkUrl60:  result.ArtworkUrl60,
-		ItunesArtworkUrl100: result.ArtworkUrl100,
-		ItunesArtworkUrl600: result.ArtworkUrl600,
+		ItunesID:            &result.CollectionId,
+		ItunesViewUrl:       &result.CollectionViewUrl,
+		ItunesArtworkUrl30:  &result.ArtworkUrl30,
+		ItunesArtworkUrl60:  &result.ArtworkUrl60,
+		ItunesArtworkUrl100: &result.ArtworkUrl100,
+		ItunesArtworkUrl600: &result.ArtworkUrl600,
+
+		ItunesArtistId:      result.ArtistId,
+		ItunesArtistViewUrl: result.ArtistViewUrl,
 	}
 
-	db, err := database.GetInstance()
-	if err != nil {
-		return nil, err
-	}
+	db, _ := database.GetInstance()
 
-	var primaryGenre *models.Genre
-	db.Where("Name = ?", result.PrimaryGenreName).First(primaryGenre)
-	if primaryGenre != nil {
-		p.PrimaryGenreID = primaryGenre.ID
-	} else {
-		p.PrimaryGenre = models.Genre{
-			Name: result.PrimaryGenreName,
+	// Cleanup genres
+	resultGenres := make([]string, 0, len(result.Genres))
+	for _, genre := range result.Genres {
+		g := strings.TrimSpace(genre)
+		if len(g) > 0 {
+			resultGenres = append(resultGenres, g)
 		}
 	}
 
-	var artist *models.Artist
-	db.Where("ItunesID = ?", result.ArtistId).First(artist)
-	if artist != nil {
-		p.ArtistID = artist.ID
-	} else {
-		p.Artist = models.Artist{
-			Name:          result.ArtistName,
-			ItunesID:      uint64(result.ArtistId),
-			ItunesViewUrl: result.ArtistViewUrl,
-		}
-	}
+	// // Cleanup primary genre
+	// var primaryGenre models.Genre
+	// if result.PrimaryGenreName != nil {
+	// 	g := strings.TrimSpace(*result.PrimaryGenreName)
+	// 	if len(g) > 0 {
+	// 		db.Where("name = ?", result.PrimaryGenreName).FirstOrCreate(&primaryGenre)
+	// 		if db.Error != nil {
+	// 			// db.Rollback()
+	// 			return nil, db.Error
+	// 		}
+	// 		p.PrimaryGenreID = &primaryGenre.ID
+	// 	}
+	// }
+	hasPrimaryGenre := result.PrimaryGenreName != nil && len(*result.PrimaryGenreName) > 0
 
-	var genres []models.Genre
-	db.Where("name IN ?", result.Genres).Find(&genres)
-	for _, genreName := range result.Genres {
-		found := false
-		for _, genre := range genres {
-			if genre.Name == genreName {
+	// Use genres already in db, create the ones that aren't
+	if len(resultGenres) > 0 {
+		var genres []models.Genre
+		db.Where("name IN ?", resultGenres).Find(&genres)
+		if db.Error != nil {
+			return nil, db.Error
+		}
+
+		unsavedGenres := make([]models.Genre, 0)
+		for _, genreName := range resultGenres {
+			foundInDb := false
+			for _, genre := range genres {
+				if *genre.Name == genreName {
+					p.PodcastGenres = append(
+						p.PodcastGenres,
+						models.PodcastGenre{
+							GenreID: genre.ID,
+						},
+					)
+					foundInDb = true
+
+					if hasPrimaryGenre {
+						isPrimaryGenre := *genre.Name == *result.PrimaryGenreName
+						if isPrimaryGenre {
+
+							p.PrimaryGenreID = &genre.ID
+						}
+					}
+
+					break
+				}
+			}
+
+			if foundInDb {
+				continue
+			}
+
+			g := genreName
+			unsavedGenres = append(unsavedGenres, models.Genre{
+				Name: &g,
+			})
+		}
+
+		if len(unsavedGenres) > 0 {
+			db.Create(unsavedGenres)
+			if db.Error != nil {
+				return nil, db.Error
+			}
+
+			for _, createdGenre := range unsavedGenres {
 				p.PodcastGenres = append(
 					p.PodcastGenres,
 					models.PodcastGenre{
-						GenreID: genre.ID,
+						GenreID: createdGenre.ID,
 					},
 				)
-				found = true
-				break
+
+				if hasPrimaryGenre {
+					isPrimaryGenre := *createdGenre.Name == *result.PrimaryGenreName
+					if isPrimaryGenre {
+						p.PrimaryGenreID = &createdGenre.ID
+					}
+				}
 			}
-		}
-		if !found {
-			p.PodcastGenres = append(
-				p.PodcastGenres,
-				models.PodcastGenre{
-					Genre: models.Genre{
-						Name: genreName,
-					},
-				},
-			)
 		}
 	}
 
-	return &p, err
+	return &p, nil
 }

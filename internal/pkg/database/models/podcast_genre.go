@@ -1,10 +1,8 @@
 package models
 
 type PodcastGenre struct {
-	Model
-
-	PodcastID string `gorm:"not null;index:idx_podcast_genre,unique"`
-	GenreID   string `gorm:"not null;index:idx_podcast_genre,unique"`
+	PodcastID string `gorm:"primaryKey"`
+	GenreID   string `gorm:"primaryKey"`
 
 	Podcast Podcast
 	Genre   Genre
