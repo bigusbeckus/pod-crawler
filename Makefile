@@ -22,4 +22,4 @@ test:
 
 debug: build run
 
-.PHONY: fmtcheck staticcheck
+.PHONY: *
