@@ -21,7 +21,20 @@
 go.work
 
 # Output files
+bin/
 output/
 
 # My playground folder
 dump/
+
+# Dolphin directory file
+.directory
+
+# Config file
+config.yaml
+
+# Log files default directory
+logs/*
+
+# Podcast url list (can get quite large)
+data/podcasts.txt

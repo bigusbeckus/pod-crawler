@@ -1,0 +1,11 @@
+database:
+  dbName: podcast-feeds
+  host: localhost
+  password: g7bXjBroyyCXyL92ZJT4mQu6hc3pTQAA
+  port: 5432
+  user: postgres
+podcastListFile: data/podcasts.txt
+concurrentFetchBatchSize: 100
+singleFetchIdsCount: 100
+saveTreshold: 50000
+logDestination: logs/
