@@ -103,11 +103,16 @@ func (f *Fetcher) fetch(url string) {
 	resp, err := http.Get(url)
 	f.fetchWaitGroup.Done()
 
-	if err != nil || resp.StatusCode != 200 {
+	statusCode := 500
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
+
+	if err != nil || statusCode != 200 {
 		go func() {
 			f.ResponseChannel <- NewFetchResponse(
 				false,
-				resp.StatusCode,
+				statusCode,
 				true,
 				url,
 				"",
@@ -122,7 +127,7 @@ func (f *Fetcher) fetch(url string) {
 		go func() {
 			f.ResponseChannel <- NewFetchResponse(
 				false,
-				resp.StatusCode,
+				statusCode,
 				false,
 				url,
 				"",
@@ -134,7 +139,7 @@ func (f *Fetcher) fetch(url string) {
 	go func() {
 		f.ResponseChannel <- NewFetchResponse(
 			true,
-			resp.StatusCode,
+			statusCode,
 			true,
 			url,
 			string(body),
