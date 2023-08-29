@@ -1,10 +1,23 @@
 FROM fedora:38
 
-ARG WIREGUARD_CONFIG_FILENAME
+ARG PROTONVPN_USERNAME
+ARG PROTONVPN_PASSWORD
 
-# Install tools
-# RUN dnf update -y
-RUN dnf install wireguard-tools -y
+# Update
+
+# Setup the Proton VPN repository
+WORKDIR /tmp
+ENV PROTONVPN_FILENAME="protonvpn-stable-release-1.0.1-2.noarch.rpm"
+RUN curl -LO https://repo.protonvpn.com/fedora-38-stable/protonvpn-stable-release/${PROTONVPN_FILENAME}
+RUN dnf install ./${PROTONVPN_FILENAME}
+RUN dnf update -y
+RUN dnf install protonvpn-cli -y
+
+# Login
+RUN cat ${PROTONVPN_PASSWORD} | protonvpn-cli login ${PROTONVPN_USERNAME}
+
+# Connect to Proton VPN servers
+RUN protonvpn-cli connect --protocol udp --random
 
 # Install go
 ENV GO_FILENAME="go1.21.0.linux-amd64.tar.gz"
@@ -13,10 +26,6 @@ RUN curl -LO https://go.dev/dl/${GO_FILENAME}
 RUN tar -C /usr/local -xzvf ${GO_FILENAME}
 ENV PATH=$PATH:/usr/local/go/bin
 RUN go version
-
-# Setup wireguard
-RUN wg-quick up ${WIREGUARD_CONFIG_FILENAME}
-RUN wg
 
 # Setup
 WORKDIR /app

@@ -6,7 +6,8 @@ services:
       context: ../
       dockerfile: ./build/package/Dockerfile
       args:
-        - WIREGUARD_CONFIG_FILENAME=${WIREGUARD_CONFIG_FILENAME_A?error}
+        - PROTONVPN_USERNAME=${PROTONVPN_USERNAME?error}
+        - PROTONVPN_PASSWORD=${PROTONVPN_PASSWORD?error}
     restart: always
     volumes:
       - ../logs:/app/logs
