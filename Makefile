@@ -17,9 +17,18 @@ clean:
 run:
 	./$(OUTFILE)
 
+out:
+	echo "$(OUTFILE)"
+
 test:
 	go test -v ./...
 
 debug: build run
+
+crawl:
+	docker compose --env-file ./.env -f deploy/docker-compose.yml up --build
+
+crawld:
+	docker compose --env-file ./.env -f deploy/docker-compose.yml up -d --build
 
 .PHONY: *

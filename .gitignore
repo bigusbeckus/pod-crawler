@@ -38,3 +38,6 @@ logs/*
 
 # Podcast url list (can get quite large)
 data/podcasts.txt
+
+# Secrets
+keys/*

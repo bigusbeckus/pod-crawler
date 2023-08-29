@@ -1,0 +1,35 @@
+version: "3.9"
+services:
+  pod_crawler_a:
+    container_name: pod-crawler-a
+    build:
+      context: ../
+      dockerfile: ./build/package/Dockerfile
+      args:
+        - WIREGUARD_CONFIG_FILENAME=${WIREGUARD_CONFIG_FILENAME_A?error}
+    restart: always
+    volumes:
+      - ../logs:/app/logs
+      - ../keys/wireguard:/etc/wireguard
+  # pod_crawler_b:
+  #   container_name: pod-crawler-b
+  #   build:
+  #     context: ../
+  #     dockerfile: ./build/package/Dockerfile
+  #     args:
+  #       - WIREGUARD_CONFIG_FILENAME=${WIREGUARD_CONFIG_FILENAME_B?error}
+  #   restart: on-failure
+  #   volumes:
+  #     - ../logs:/app/logs
+  #     - ../keys/wireguard:/etc/wireguard
+  # pod_crawler_c:
+  #   container_name: pod-crawler-c
+  #   build:
+  #     context: ../
+  #     dockerfile: ./build/package/Dockerfile
+  #     args:
+  #       - WIREGUARD_CONFIG_FILENAME=${WIREGUARD_CONFIG_FILENAME_C?error}
+  #   restart: on-failure
+  #   volumes:
+  #     - ../logs:/app/logs
+  #     - ../keys/wireguard:/etc/wireguard
