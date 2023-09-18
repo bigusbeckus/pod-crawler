@@ -9,12 +9,13 @@ ARG PROTONVPN_PASSWORD
 WORKDIR /tmp
 ENV PROTONVPN_FILENAME="protonvpn-stable-release-1.0.1-2.noarch.rpm"
 RUN curl -LO https://repo.protonvpn.com/fedora-38-stable/protonvpn-stable-release/${PROTONVPN_FILENAME}
-RUN dnf install ./${PROTONVPN_FILENAME}
+RUN dnf install ./${PROTONVPN_FILENAME} -y
 RUN dnf update -y
 RUN dnf install protonvpn-cli -y
 
 # Login
-RUN cat ${PROTONVPN_PASSWORD} | protonvpn-cli login ${PROTONVPN_USERNAME}
+# RUN echo ${PROTONVPN_PASSWORD} | protonvpn-cli login ${PROTONVPN_USERNAME}
+RUN protonvpn-cli login ${PROTONVPN_USERNAME}
 
 # Connect to Proton VPN servers
 RUN protonvpn-cli connect --protocol udp --random
